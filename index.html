@@ -167,9 +167,27 @@
       background: rgba(255,255,255,0.35);
     }
 
+    /* Drag handle */
+    .wk-drag {
+      width: 18px;
+      min-width: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      opacity: 0;
+      font-size: 0.75rem;
+      color: #999;
+      transition: opacity 0.15s;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .wk-cell:hover .wk-drag { opacity: 1; }
+    .wk-drag:active { cursor: grabbing; }
+
     /* Drag states */
-    .wk-content.is-dragging { opacity: 0.35; }
-    .wk-content.drag-over   { outline: 2px solid #7D6348; outline-offset: -2px; background: rgba(125,99,72,0.12); }
+    .wk-cell.is-dragging { opacity: 0.35; }
+    .wk-cell.drag-over   { outline: 2px solid #7D6348; outline-offset: -2px; background: rgba(125,99,72,0.12); }
 
     /* ── PIN Gate ───────────────────────────────────────── */
     #pin-gate {
@@ -326,9 +344,10 @@ function render() {
 
       if (isRest) {
         content.textContent = 'REST  ·  REPLAN';
+        cell.appendChild(badge);
+        cell.appendChild(content);
       } else {
         content.contentEditable = 'true';
-        content.draggable = true;
         content.spellcheck = false;
         content.textContent = data[week] || '';
 
@@ -340,44 +359,61 @@ function render() {
           }
         });
 
-        content.addEventListener('dragstart', e => {
-          dragSrc = content;
-          content.classList.add('is-dragging');
+        // Drag handle
+        const handle = document.createElement('div');
+        handle.className = 'wk-drag';
+        handle.textContent = '⠿';
+        handle.title = 'Drag to swap with another week';
+
+        // Drag events on the CELL (triggered via handle)
+        cell.draggable = false; // only enabled while handle is held
+
+        handle.addEventListener('mousedown', () => { cell.draggable = true; });
+        handle.addEventListener('mouseup',   () => { cell.draggable = false; });
+
+        cell.addEventListener('dragstart', e => {
+          dragSrc = cell;
+          cell.classList.add('is-dragging');
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('text/plain', content.textContent);
         });
 
-        content.addEventListener('dragend', () => {
-          content.classList.remove('is-dragging');
+        cell.addEventListener('dragend', () => {
+          cell.draggable = false;
+          cell.classList.remove('is-dragging');
           document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         });
 
-        content.addEventListener('dragover', e => {
+        cell.addEventListener('dragover', e => {
           e.preventDefault();
-          content.classList.add('drag-over');
+          if (dragSrc && dragSrc !== cell) cell.classList.add('drag-over');
         });
 
-        content.addEventListener('dragleave', () => content.classList.remove('drag-over'));
+        cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
 
-        content.addEventListener('drop', e => {
+        cell.addEventListener('drop', e => {
           e.preventDefault();
-          content.classList.remove('drag-over');
-          if (!dragSrc || dragSrc === content) return;
-          // Swap
-          const tmp = content.textContent;
-          content.textContent = dragSrc.textContent;
-          dragSrc.textContent = tmp;
-          const srcWk = +dragSrc.dataset.week;
-          const dstWk = +content.dataset.week;
-          data[srcWk] = dragSrc.textContent;
-          data[dstWk] = content.textContent;
+          cell.classList.remove('drag-over');
+          if (!dragSrc || dragSrc === cell) return;
+          const srcContent = dragSrc.querySelector('.wk-content');
+          const dstContent = content;
+          // Swap text
+          const tmp = dstContent.textContent;
+          dstContent.textContent = srcContent.textContent;
+          srcContent.textContent = tmp;
+          const srcWk = +srcContent.dataset.week;
+          const dstWk = +dstContent.dataset.week;
+          data[srcWk] = srcContent.textContent;
+          data[dstWk] = dstContent.textContent;
           persist(srcWk, data[srcWk]);
           persist(dstWk, data[dstWk]);
         });
+
+        cell.appendChild(badge);
+        cell.appendChild(content);
+        cell.appendChild(handle);
       }
 
-      cell.appendChild(badge);
-      cell.appendChild(content);
       grid.appendChild(cell);
     }
   }
