@@ -267,8 +267,7 @@
 
   const input = document.getElementById('pin-input');
   const err   = document.getElementById('pin-error');
-  input.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
+  function tryPin() {
     if (input.value === CORRECT) {
       const exp = new Date(Date.now() + 365 * 864e5).toUTCString();
       document.cookie = `${COOKIE}=${CORRECT}; expires=${exp}; path=/`;
@@ -279,6 +278,14 @@
       input.classList.add('shake');
       setTimeout(() => input.classList.remove('shake'), 400);
     }
+  }
+
+  input.addEventListener('input', () => {
+    if (input.value.length >= 4) tryPin();
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryPin();
   });
   input.focus();
 })();
